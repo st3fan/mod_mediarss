@@ -7,9 +7,7 @@ ate your own risk.
 
 This Apache 2.0 module implements directory indexes in the Media RSS
 format. The format is an extension of regular RSS 2.0 and is
-documented at Yahoo:
-
-  http://search.yahoo.com/mrss
+documented at <http://search.yahoo.com/mrss>.
 
 Output of MediaRSS is specially useful in cases where you want to make
 a directory of files available as a podcast where for example iTunes
