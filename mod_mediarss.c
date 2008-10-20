@@ -58,10 +58,16 @@ static int mediarss_index_directory(request_rec* r)
 
    /* Content header */
 
+   char* url;
+   url = ap_construct_url(r->pool, r->uri, r);
+
    ap_set_content_type(r, "text/xml; charset=utf-8");
-   
+
+   ap_rputs("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n\n", r);
    ap_rputs("<rss version=\"2.0\" xmlns:media=\"http://search.yahoo.com/mrss/\">\n", r);
    ap_rputs("<channel>\n", r);
+   ap_rvputs(r, "  <title>Index of ", url, "</title>\n", NULL);
+   ap_rvputs(r, "  <link>", url, "</link>\n", NULL);
 
    /* Collect information about the files in the directory */
    
@@ -90,15 +96,14 @@ static int mediarss_index_directory(request_rec* r)
                
                char date[APR_RFC822_DATE_LEN];
                apr_rfc822_date(date, dirent.mtime);
-
-               char* url;
-               url = ap_construct_url(r->pool, r->uri, r);
-            
-               ap_rvputs(r, "  <pubDate>", date, "</pubDate>\n");
-               ap_rvputs(r, "  <enclosure>", url, dirent.name, "</enclosure>\n");
-               
+                           
                ap_rputs("  <item>\n", r);
-               ap_rvputs(r, "    <media:content url=\"", url, dirent.name, "\" filesize=\"", size, "\"\n", NULL);
+               ap_rvputs(r, "    <guid>", url, dirent.name, "</guid>\n", NULL);
+               ap_rvputs(r, "    <title>", dirent.name, "</title>\n", NULL);
+               ap_rvputs(r, "    <pubDate>", date, "</pubDate>\n", NULL);
+               ap_rvputs(r, "    <enclosure url=\"", url, dirent.name, "\" length=\"", size, "\"\n", NULL);
+               ap_rvputs(r, "      type=\"", rr->content_type, "\"/>\n", NULL);
+               ap_rvputs(r, "    <media:content url=\"", url, dirent.name, "\" fileSize=\"", size, "\"\n", NULL);
                ap_rvputs(r, "      type=\"", rr->content_type, "\">\n", NULL);
                ap_rputs("    </media:content>\n", r);
                ap_rputs("  </item>\n", r);
@@ -112,6 +117,7 @@ static int mediarss_index_directory(request_rec* r)
    /* Content footer */
 
    ap_rputs("</channel>\n", r);
+   ap_rputs("</rss>\n", r);
    
    return OK;
 }
@@ -133,9 +139,14 @@ static int mediarss_handler(request_rec* r)
       return DECLINED;
    }
 
-   const char* accept = lookup_header(r, "Accept");
-   if (accept == NULL || strcmp(accept, "application/rss+xml") != 0) {
-      return DECLINED;
+   // TODO This is lame and should be done in a different way
+
+   const char* user_agent = lookup_header(r, "User-Agent");
+   if (user_agent != NULL && strstr(user_agent, "iTunes") == NULL) {
+      const char* accept = lookup_header(r, "Accept");
+      if (accept == NULL || strcmp(accept, "application/rss+xml") != 0) {
+         return DECLINED;
+      }
    }
 
    if (allow_opts & OPT_INDEXES) {
