@@ -1,0 +1,32 @@
+
+NOTE: This is work in progress. This may or may not work for you. I
+have also not figured out all security aspects of this module. So use
+ate your own risk.
+
+*What is This?*
+
+This Apache 2.0 module implements directory indexes in the Media RSS
+format. The format is an extension of regular RSS 2.0 and is
+documented at Yahoo:
+
+  http://search.yahoo.com/mrss
+
+Output of MediaRSS is specially useful in cases where you want to make
+a directory of files available as a podcast where for example iTunes
+or a media player device can subscribe to it.
+
+
+*Compiling & Installing the Module*
+
+apxs -c mod_mediarss.c
+apxs -i mod_mediarss.la
+
+
+*Apache Configuration*
+
+All you have to do is load the module:
+
+  LoadModule mediarss_module modules/mod_mediarss.so
+
+Directory indexes in Media RSS format are then available to all
+directories that have been enabled with indexing on.
