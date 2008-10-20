@@ -1,7 +1,7 @@
 
 NOTE: This is work in progress. This may or may not work for you. I
 have also not figured out all security aspects of this module. So use
-ate your own risk.
+at your own risk.
 
 *What is This?*
 
@@ -12,6 +12,10 @@ documented at <http://search.yahoo.com/mrss>.
 Output of MediaRSS is specially useful in cases where you want to make
 a directory of files available as a podcast where for example iTunes
 or a media player device can subscribe to it.
+
+The nice thing of having this functionality as part of Apache is that
+you don't have to write any code to generate the feeds. Simply moving
+files in a directory is enough.
 
 
 *Compiling & Installing the Module*
@@ -28,3 +32,17 @@ All you have to do is load the module:
 
 Directory indexes in Media RSS format are then available to all
 directories that have been enabled with indexing on.
+
+
+*Future*
+
+The module emits media rss if a request on a directory matches the
+following requirements:
+
+ * The Accept header equals "application/xml+rss"
+ * The User-Agent header contains "iTunes"
+
+Both are not ideal and I am looking for an alternative solution.
+
+It would be nice to let the module parse a DESCRIPTION file, which can
+then be put in the channel's description field.
