@@ -30,19 +30,15 @@ All you have to do is load the module:
 
   LoadModule mediarss_module modules/mod_mediarss.so
 
-Directory indexes in Media RSS format are then available to all
-directories that have been enabled with indexing on.
+And then do a request on a directory with the format=rss or
+format=mediarss query string. The directory must have directory
+indexing enabled.
 
+For example: http://server/movies?format=mediarss
 
 *Future*
 
-The module emits media rss if a request on a directory matches the
-following requirements:
-
- * The Accept header equals "application/xml+rss"
- * The User-Agent header contains "iTunes"
-
-Both are not ideal and I am looking for an alternative solution.
+Fill in the media meta data (duration, video codecs, video size, etc.).
 
 It would be nice to let the module parse a DESCRIPTION file, which can
 then be put in the channel's description field.
