@@ -27,6 +27,22 @@
 #include <http_config.h>
 #include <util_md5.h>
 
+static int mediarss_is_media_content(char const* content_type)
+{
+   static char* types[3] = { "image/", "video/", "audio/" };
+
+   if (content_type != NULL) {
+      int i;
+      for (i = 0; i < 3; ++i) {
+         if (strncmp(content_type, types[i], strlen(types[i])) == 0) {
+            return 1;
+         }
+      }
+   }
+   
+   return 0;
+}
+
 static int mediarss_index_directory(request_rec* r)
 {
    apr_status_t status;
@@ -46,10 +62,14 @@ static int mediarss_index_directory(request_rec* r)
    ap_set_content_type(r, "text/xml; charset=utf-8");
 
    ap_rputs("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n\n", r);
-   ap_rputs("<rss version=\"2.0\" xmlns:media=\"http://search.yahoo.com/mrss/\">\n", r);
-   ap_rputs("<channel>\n", r);
-   ap_rvputs(r, "  <title>Index of ", url, "</title>\n", NULL);
-   ap_rvputs(r, "  <link>", url, "</link>\n", NULL);
+   if (strcmp(r->args, "format=mediarss") == 0) {
+      ap_rputs("<rss version=\"2.0\" xmlns:media=\"http://search.yahoo.com/mrss/\">\n", r);
+   } else {
+      ap_rputs("<rss version=\"2.0\">\n", r);
+   }
+   ap_rputs("  <channel>\n", r);
+   ap_rvputs(r, "    <title>Index of ", url, "</title>\n", NULL);
+   ap_rvputs(r, "    <link>", url, "</link>\n", NULL);
 
    /* Collect information about the files in the directory */
    
@@ -73,6 +93,12 @@ static int mediarss_index_directory(request_rec* r)
          {
             if (rr->finfo.filetype == APR_REG && rr->status == HTTP_OK)
             {
+               /* In case of media rss, only include the item if it is a media type */
+
+               if (strcmp(r->args, "format=mediarss") == 0 && mediarss_is_media_content(rr->content_type) == 0) {
+                  continue;
+               }
+
                char size[16];
                snprintf(size, sizeof(size), "%d", dirent.size);
                
@@ -81,18 +107,18 @@ static int mediarss_index_directory(request_rec* r)
                
                char* guid = ap_md5(r->pool, (unsigned char*) apr_pstrcat(r->pool, url, dirent.name, NULL));
                            
-               ap_rputs("  <item>\n", r);
-               ap_rvputs(r, "    <guid>", guid, "</guid>\n", NULL);
-               ap_rvputs(r, "    <title>", dirent.name, "</title>\n", NULL);
-               ap_rvputs(r, "    <pubDate>", date, "</pubDate>\n", NULL);
-               ap_rvputs(r, "    <enclosure url=\"", url, dirent.name, "\" length=\"", size, "\"\n", NULL);
-               ap_rvputs(r, "      type=\"", rr->content_type, "\"/>\n", NULL);
-               ap_rvputs(r, "    <media:content url=\"", url, dirent.name, "\" fileSize=\"", size, "\"\n", NULL);
-               ap_rvputs(r, "      type=\"", rr->content_type, "\">\n", NULL);
-               ap_rputs("    </media:content>\n", r);
-               ap_rputs("  </item>\n", r);
+               ap_rputs("    <item>\n", r);
+               ap_rvputs(r, "      <guid>", guid, "</guid>\n", NULL);
+               ap_rvputs(r, "      <title>", dirent.name, "</title>\n", NULL);
+               ap_rvputs(r, "      <pubDate>", date, "</pubDate>\n", NULL);
+               ap_rvputs(r, "      <enclosure url=\"", url, dirent.name, "\" length=\"", size, "\"\n", NULL);
+               ap_rvputs(r, "        type=\"", rr->content_type, "\"/>\n", NULL);
+               if (strcmp(r->args, "format=mediarss") == 0) {
+                  ap_rvputs(r, "      <media:content url=\"", url, dirent.name, "\" fileSize=\"", size, "\"\n", NULL);
+                  ap_rvputs(r, "        type=\"", rr->content_type, "\"/>\n", NULL);
+               }
+               ap_rputs("    </item>\n", r);
             }
-            
             ap_destroy_sub_req(rr);
          }
       }
@@ -100,7 +126,7 @@ static int mediarss_index_directory(request_rec* r)
 
    /* Content footer */
 
-   ap_rputs("</channel>\n", r);
+   ap_rputs("  </channel>\n", r);
    ap_rputs("</rss>\n", r);
 
    apr_dir_close(dir);
@@ -110,7 +136,15 @@ static int mediarss_index_directory(request_rec* r)
 
 static int mediarss_handler(request_rec* r)
 {
+   /* This needs to be a request for a directory */
+
    if (strcmp(r->handler, DIR_MAGIC_TYPE) != 0) {
+      return DECLINED;
+   }
+   
+   /* We require the format=mediarss or format=rss query parameter */
+   
+   if (r->args == NULL || (strcmp(r->args, "format=mediarss") != 0 && strcmp(r->args, "format=rss") != 0)) {
       return DECLINED;
    }
 
@@ -121,16 +155,6 @@ static int mediarss_handler(request_rec* r)
       return DECLINED;
    }
    
-   // TODO This is lame and should be done in a totally different way
-   
-   const char* user_agent = apr_table_get(r->headers_in, "User-Agent");
-   if (user_agent != NULL && strstr(user_agent, "iTunes") == NULL) {
-      const char* accept = apr_table_get(r->headers_in, "Accept");
-      if (accept == NULL || strcmp(accept, "application/rss+xml") != 0) {
-         return DECLINED;
-      }
-   }
-
    if (allow_opts & OPT_INDEXES) {
       return mediarss_index_directory(r);
    } else {
